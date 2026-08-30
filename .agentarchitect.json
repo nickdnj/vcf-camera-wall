@@ -1,0 +1,29 @@
+{
+  "provisionedFrom": "/Users/nickd/Workspaces/AgentArchitect",
+  "kind": "project",
+  "team": "software-project",
+  "teams": [
+    "software-project"
+  ],
+  "projectType": "software",
+  "projectName": "VCF Camera Wall",
+  "agents": [
+    "dev-planning",
+    "legal",
+    "marketing",
+    "product-requirements",
+    "qa-strategy",
+    "sales",
+    "software-architecture",
+    "software-developer",
+    "ux-design",
+    "wiki-ingest"
+  ],
+  "skills": [
+    "software-project"
+  ],
+  "mcp": [],
+  "provisionedAt": "2026-08-30",
+  "aaCommit": "8d065cee2700370133b797a45301ee184fd9d39d",
+  "syncedAt": "2026-08-30"
+}
