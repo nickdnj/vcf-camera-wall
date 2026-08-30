@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VCF Camera Wall</title>
+<style>
+  :root{
+    --bg:#0a0d10; --tile:#0f1319; --line:#1e2732; --edge:#2a3644;
+    --text:#e8eef4; --muted:#8998a8; --accent:#39d98a; --warn:#ffb454; --bad:#ff5c5c;
+    --label-bg:rgba(6,9,12,.72);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+  body.cursor-hidden{cursor:none}
+
+  header{display:flex;align-items:center;gap:14px;padding:8px 16px;background:#0c1015;border-bottom:1px solid var(--line);flex:0 0 auto;z-index:5}
+  header .brand{font-weight:700;letter-spacing:.3px;font-size:15px}
+  header .brand .dot{color:var(--accent)}
+  header .status{color:var(--muted);font-size:12.5px}
+  header .spacer{margin-left:auto}
+  header .clock{font-variant-numeric:tabular-nums;font-size:14px;color:var(--text);letter-spacing:.4px}
+  .btn{background:#151b22;color:var(--text);border:1px solid var(--edge);border-radius:8px;padding:6px 11px;font-size:12.5px;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .btn.active{background:#12331f;border-color:var(--accent);color:var(--accent)}
+  .btngroup{display:flex;gap:6px}
+
+  main{flex:1 1 auto;min-height:0;padding:8px;overflow:hidden}
+  .wall{height:100%;display:grid;gap:8px}
+  /* grid layout auto-adapts to camera count */
+  .wall.grid[data-n="1"]{grid-template-columns:1fr}
+  .wall.grid[data-n="2"]{grid-template-columns:1fr 1fr}
+  .wall.grid[data-n="3"]{grid-template-columns:1fr 1fr 1fr}
+  .wall.grid[data-n="4"]{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+  .wall.grid[data-n="5"],.wall.grid[data-n="6"]{grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr}
+  .wall.grid[data-n="7"],.wall.grid[data-n="8"],.wall.grid[data-n="9"]{grid-template-columns:1fr 1fr 1fr;grid-template-rows:repeat(3,1fr)}
+
+  /* spotlight: first tile big, rest in a side rail */
+  .wall.spotlight{grid-template-columns:1fr 240px;grid-template-rows:1fr}
+  .wall.spotlight .tile:first-child{grid-row:1 / -1}
+  .wall.spotlight{grid-auto-rows:1fr}
+  .wall.spotlight .rail{display:flex;flex-direction:column;gap:8px;min-height:0;grid-column:2;grid-row:1}
+
+  /* solo: only the selected tile */
+  .wall.solo{grid-template-columns:1fr}
+
+  .tile{position:relative;background:var(--tile);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-height:0;display:flex;align-items:center;justify-content:center}
+  .tile.selected{border-color:var(--accent)}
+  .tile img{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+  .tile .label{position:absolute;left:0;bottom:0;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--label-bg);
+    border-top-right-radius:8px;font-size:13px;max-width:90%}
+  .tile .label .name{font-weight:600}
+  .tile .label .ip{color:var(--muted);font-size:11.5px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .tile .badge{position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:6px;padding:4px 9px;border-radius:20px;
+    background:var(--label-bg);font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+  .tile .badge .led{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .tile[data-state="live"] .badge .led{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  .tile[data-state="live"] .badge{color:var(--accent)}
+  .tile[data-state="connecting"] .badge .led{background:var(--warn);animation:pulse 1s infinite}
+  .tile[data-state="connecting"] .badge{color:var(--warn)}
+  .tile[data-state="offline"] .badge .led{background:var(--bad)}
+  .tile[data-state="offline"] .badge{color:var(--bad)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .tile .overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:#080b0e;color:var(--muted);text-align:center;padding:20px}
+  .tile[data-state="offline"] .overlay{display:flex}
+  .tile .overlay .big{color:var(--text);font-size:15px;font-weight:600}
+  .tile .overlay .sub{font-size:12.5px}
+  .tile .num{position:absolute;top:8px;left:10px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;background:var(--label-bg);padding:2px 7px;border-radius:6px}
+
+  footer{flex:0 0 auto;padding:5px 16px;background:#0c1015;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px;display:flex;gap:16px;align-items:center}
+  footer kbd{background:#151b22;border:1px solid var(--edge);border-bottom-width:2px;border-radius:5px;padding:0 5px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--text)}
+  footer .spacer{margin-left:auto}
+  body.kiosk header,body.kiosk footer{display:none}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">VCF Camera Wall <span class="dot">●</span></span>
+  <span class="status" id="status">starting…</span>
+  <span class="spacer"></span>
+  <div class="btngroup">
+    <button class="btn" data-layout="grid">Grid</button>
+    <button class="btn" data-layout="spotlight">Spotlight</button>
+    <button class="btn" data-layout="solo">Solo</button>
+  </div>
+  <button class="btn" id="reloadBtn" title="Reconnect all (R)">⟳ Reconnect</button>
+  <button class="btn" id="fsBtn" title="Fullscreen (F)">⛶ Fullscreen</button>
+  <span class="clock" id="clock"></span>
+</header>
+
+<main>
+  <div class="wall" id="wall"></div>
+</main>
+
+<footer>
+  <span><kbd>F</kbd> fullscreen</span>
+  <span><kbd>G</kbd> grid</span>
+  <span><kbd>S</kbd> spotlight</span>
+  <span><kbd>1</kbd>–<kbd>9</kbd> solo camera</span>
+  <span><kbd>R</kbd> reconnect all</span>
+  <span><kbd>Esc</kbd> exit fullscreen</span>
+  <span class="spacer"></span>
+  <span id="foot-meta"></span>
+</footer>
+
+<script src="config.js"></script>
+<script>
+(function(){
+  "use strict";
+  var CFG = (window.WALL_CONFIG) || { cameras: [], quality:"native", layout:"grid" };
+  var QUALITY = {
+    native:  "fps=12",
+    low:     "resolution=640x480&fps=8",
+    medium:  "resolution=1280x720&fps=12",
+    high:    "resolution=1920x1080&fps=15",
+  };
+  function qstring(){ return QUALITY[CFG.quality] || QUALITY.native; }
+  function streamUrl(cam){
+    if (cam.stream) return cam.stream;
+    var q = qstring();
+    return "http://" + cam.ip + "/axis-cgi/mjpg/video.cgi" + (q ? "?" + q : "");
+  }
+  function bust(url){ return url + (url.indexOf("?")>=0 ? "&" : "?") + "_t=" + Date.now(); }
+
+  document.title = CFG.title || "VCF Camera Wall";
+  document.querySelector(".brand").firstChild.nodeValue =
+    (CFG.title ? CFG.title.replace(/\s*—.*$/,"") : "VCF") + " Camera Wall ";
+
+  var wall = document.getElementById("wall");
+  var statusEl = document.getElementById("status");
+  var footMeta = document.getElementById("foot-meta");
+  var cams = CFG.cameras || [];
+  var tiles = [];         // {cam, el, img, state, timer, delay}
+  var layout = CFG.layout || "grid";
+  var soloIndex = 0;
+
+  // ---- build tiles ----
+  cams.forEach(function(cam, i){
+    var el = document.createElement("div");
+    el.className = "tile";
+    el.dataset.state = "connecting";
+    el.innerHTML =
+      '<span class="num">'+(i+1)+'</span>' +
+      '<img alt="">' +
+      '<div class="overlay"><div class="big">Signal lost</div>' +
+        '<div class="sub">'+cam.name+' · '+cam.ip+'</div>' +
+        '<div class="sub">reconnecting…</div></div>' +
+      '<div class="badge"><span class="led"></span><span class="txt">connecting</span></div>' +
+      '<div class="label"><span class="name">'+cam.name+'</span><span class="ip">'+cam.ip+'</span></div>';
+    var img = el.querySelector("img");
+    var t = { cam:cam, el:el, img:img, state:"connecting", timer:null, delay:CFG.reconnectDelayMs||3000 };
+    tiles.push(t);
+
+    img.addEventListener("load", function(){ setState(t, "live"); t.delay = CFG.reconnectDelayMs||3000; });
+    img.addEventListener("error", function(){ onError(t); });
+
+    el.addEventListener("click", function(){
+      if (layout === "solo"){ soloIndex = i; render(); }
+      else if (layout === "spotlight"){ moveToSpotlight(i); }
+    });
+  });
+
+  function setState(t, s){
+    t.state = s;
+    t.el.dataset.state = s;
+    var txt = t.el.querySelector(".badge .txt");
+    if (txt) txt.textContent = s;
+    updateStatus();
+  }
+  function onError(t){
+    setState(t, "connecting");
+    if (t.timer) clearTimeout(t.timer);
+    t.timer = setTimeout(function(){
+      connect(t);
+      t.delay = Math.min((t.delay||3000) * 1.6, CFG.maxReconnectDelayMs||30000);
+      // if still failing after this connect, error handler schedules next
+      setTimeout(function(){ if (t.state !== "live"){ setState(t,"offline"); } }, 6000);
+    }, t.delay || 3000);
+  }
+  function connect(t){
+    t.img.src = bust(streamUrl(t.cam));
+  }
+  function connectAll(){ tiles.forEach(function(t){ if(t.timer) clearTimeout(t.timer); t.delay=CFG.reconnectDelayMs||3000; connect(t); setState(t,"connecting"); }); }
+
+  function updateStatus(){
+    var live = tiles.filter(function(t){return t.state==="live";}).length;
+    statusEl.textContent = live + " / " + tiles.length + " cameras live";
+    statusEl.style.color = live===tiles.length ? "var(--accent)" : (live===0 ? "var(--bad)" : "var(--warn)");
+  }
+
+  // ---- layout rendering ----
+  function render(){
+    wall.className = "wall " + layout;
+    // detach all
+    tiles.forEach(function(t){ if(t.el.parentNode) t.el.parentNode.removeChild(t.el); });
+    // clear any rail
+    var rail = wall.querySelector(".rail"); if(rail) rail.remove();
+    wall.innerHTML = "";
+
+    if (layout === "grid"){
+      wall.dataset.n = tiles.length;
+      tiles.forEach(function(t){ t.el.classList.remove("selected"); wall.appendChild(t.el); });
+    } else if (layout === "spotlight"){
+      wall.dataset.n = "";
+      var main = tiles[soloIndex] || tiles[0];
+      main.el.classList.add("selected");
+      wall.appendChild(main.el);
+      var rail2 = document.createElement("div");
+      rail2.className = "rail";
+      tiles.forEach(function(t,i){ if(t!==main){ t.el.classList.remove("selected"); rail2.appendChild(t.el);} });
+      wall.appendChild(rail2);
+    } else { // solo
+      wall.dataset.n = "1";
+      var s = tiles[soloIndex] || tiles[0];
+      s.el.classList.remove("selected");
+      wall.appendChild(s.el);
+    }
+    syncLayoutButtons();
+    footMeta.textContent = cams.length + " cameras · " + (CFG.quality||"native") + " quality";
+  }
+  function moveToSpotlight(i){ soloIndex = i; render(); }
+  function syncLayoutButtons(){
+    document.querySelectorAll("[data-layout]").forEach(function(b){
+      b.classList.toggle("active", b.dataset.layout === layout);
+    });
+  }
+  function setLayout(l){ layout = l; render(); }
+
+  document.querySelectorAll("[data-layout]").forEach(function(b){
+    b.addEventListener("click", function(){ setLayout(b.dataset.layout); });
+  });
+
+  // ---- fullscreen / kiosk ----
+  function toggleFullscreen(){
+    if (!document.fullscreenElement){
+      (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||function(){}).call(document.documentElement);
+    } else {
+      (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+    }
+  }
+  document.getElementById("fsBtn").addEventListener("click", toggleFullscreen);
+  document.getElementById("reloadBtn").addEventListener("click", connectAll);
+  document.addEventListener("fullscreenchange", function(){
+    document.body.classList.toggle("kiosk", !!document.fullscreenElement);
+  });
+
+  // ---- clock ----
+  var clock = document.getElementById("clock");
+  function tick(){
+    if (!CFG.showClock){ clock.textContent=""; return; }
+    var d = new Date();
+    clock.textContent = d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }
+  setInterval(tick, 1000); tick();
+
+  // ---- watchdog: soft reload periodically to clear silent stalls ----
+  if ((CFG.watchdogReloadMin||0) > 0){
+    setInterval(connectAll, CFG.watchdogReloadMin*60*1000);
+  }
+
+  // ---- hide cursor when idle ----
+  var cursorTimer=null;
+  function armCursor(){
+    document.body.classList.remove("cursor-hidden");
+    if (cursorTimer) clearTimeout(cursorTimer);
+    if ((CFG.hideCursorAfterSec||0)>0){
+      cursorTimer = setTimeout(function(){ document.body.classList.add("cursor-hidden"); }, CFG.hideCursorAfterSec*1000);
+    }
+  }
+  document.addEventListener("mousemove", armCursor);
+  armCursor();
+
+  // ---- keyboard ----
+  document.addEventListener("keydown", function(e){
+    var k = e.key.toLowerCase();
+    if (k === "f"){ e.preventDefault(); toggleFullscreen(); }
+    else if (k === "g"){ setLayout("grid"); }
+    else if (k === "s"){ setLayout("spotlight"); }
+    else if (k === "r"){ connectAll(); }
+    else if (/^[1-9]$/.test(k)){
+      var idx = parseInt(k,10)-1;
+      if (idx < tiles.length){ soloIndex = idx; setLayout("solo"); }
+    }
+  });
+
+  // ---- go ----
+  if (!cams.length){
+    statusEl.textContent = "No cameras configured — edit config.js";
+    statusEl.style.color = "var(--bad)";
+    return;
+  }
+  render();
+  connectAll();
+})();
+</script>
+</body>
+</html>
