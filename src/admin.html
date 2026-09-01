@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Camera Wall · Admin</title>
+<style>
+  :root{
+    --bg:#0a0d10; --card:#0f1319; --line:#1e2732; --edge:#2a3644; --text:#e8eef4;
+    --muted:#8998a8; --accent:#39d98a; --warn:#ffb454; --bad:#ff5c5c; --blue:#4aa8ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:env(safe-area-inset-bottom)}
+  header{position:sticky;top:0;z-index:10;background:#0c1015;border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
+  header .brand{font-weight:700}.brand .dot{color:var(--accent)}
+  header .sp{margin-left:auto}
+  .tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 12px;position:sticky;top:52px;background:#0c1015;border-bottom:1px solid var(--line);z-index:9}
+  .tab{flex:0 0 auto;padding:8px 14px;border-radius:20px;border:1px solid var(--edge);background:#151b22;color:var(--muted);font-size:13.5px;white-space:nowrap}
+  .tab.active{background:#12331f;border-color:var(--accent);color:var(--accent)}
+  main{padding:14px;max-width:640px;margin:0 auto}
+  .panel{display:none}.panel.active{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  h2{font-size:16px;margin-bottom:4px}.hint{color:var(--muted);font-size:12.5px;margin-bottom:10px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:8px 0 4px}
+  input,select{width:100%;background:#0b0f14;border:1px solid var(--edge);color:var(--text);border-radius:9px;
+    padding:11px 12px;font-size:15px;font-family:inherit}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#151b22;color:var(--text);
+    border:1px solid var(--edge);border-radius:10px;padding:11px 14px;font-size:14.5px;font-weight:600;cursor:pointer;width:100%}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:#12331f;border-color:var(--accent);color:var(--accent)}
+  .btn.blue{background:#0f2740;border-color:var(--blue);color:var(--blue)}
+  .btn.danger{background:#3a1414;border-color:var(--bad);color:var(--bad)}
+  .btn.sm{width:auto;padding:8px 11px;font-size:13px}
+  .btnrow{display:flex;gap:8px;margin-top:10px}
+  .cam{border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:10px;background:#0c1116}
+  .cam .top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .cam .top .idx{color:var(--muted);font-variant-numeric:tabular-nums}
+  .cam .ord{display:flex;gap:4px;margin-left:auto}
+  .cam .ord button{background:#151b22;border:1px solid var(--edge);color:var(--text);border-radius:8px;width:34px;height:34px;font-size:15px}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text)}
+  .toggle input{width:auto}
+  .scan-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .found{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0c1116}
+  .found img{width:100%;height:96px;object-fit:cover;background:#000;display:block}
+  .found .b{padding:8px}.found .ip{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:var(--accent);margin-bottom:6px}
+  .netlist .net{display:flex;align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid var(--line)}
+  .netlist .net .sig{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;width:40px;text-align:right}
+  .netlist .net .use{color:var(--accent);font-size:11px}
+  .status-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px}
+  .status-grid .k{color:var(--muted)}
+  .health .h{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .dot2{width:9px;height:9px;border-radius:50%;background:var(--muted)}.dot2.on{background:var(--accent);box-shadow:0 0 8px var(--accent)}.dot2.off{background:var(--bad)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#12331f;border:1px solid var(--accent);color:var(--accent);
+    padding:10px 16px;border-radius:10px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90%}
+  .toast.show{opacity:1}.toast.err{background:#3a1414;border-color:var(--bad);color:var(--bad)}
+  #login{max-width:340px;margin:12vh auto;text-align:center}
+  #login .lock{font-size:38px;margin-bottom:8px}
+  #login input{text-align:center;letter-spacing:.3em;font-size:22px}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--edge);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .muted{color:var(--muted)} .center{text-align:center}
+</style>
+</head>
+<body>
+
+<div id="login" class="card" style="display:none">
+  <div class="lock">🔒</div>
+  <h2>Camera Wall Admin</h2>
+  <p class="hint">Enter the PIN to manage this display.</p>
+  <input id="pin" type="tel" inputmode="numeric" placeholder="••••" maxlength="12" autocomplete="off">
+  <div class="btnrow"><button class="btn primary" id="loginBtn">Unlock</button></div>
+  <p class="hint" id="loginMsg"></p>
+</div>
+
+<div id="app" style="display:none">
+  <header>
+    <span class="brand">Camera Wall <span class="dot">●</span></span>
+    <span class="sp"></span>
+    <button class="btn sm" id="logoutBtn">Log out</button>
+  </header>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="cameras">Cameras</div>
+    <div class="tab" data-tab="scan">Scan</div>
+    <div class="tab" data-tab="wifi">Wi-Fi</div>
+    <div class="tab" data-tab="display">Display</div>
+    <div class="tab" data-tab="system">System</div>
+  </div>
+  <main>
+    <!-- CAMERAS -->
+    <section class="panel active" id="p-cameras">
+      <div class="card">
+        <h2>Cameras</h2>
+        <p class="hint">Add, rename, reorder, or disable the feeds shown on the wall.</p>
+        <div id="camList"></div>
+        <div class="btnrow">
+          <button class="btn sm" id="addCam">+ Add camera</button>
+          <button class="btn primary" id="saveCams">Save &amp; apply</button>
+        </div>
+      </div>
+    </section>
+    <!-- SCAN -->
+    <section class="panel" id="p-scan">
+      <div class="card">
+        <h2>Find cameras</h2>
+        <p class="hint">Scans the network for AXIS / MJPEG cameras. Tap a result to add it.</p>
+        <label>Subnet to scan (first 3 octets)</label>
+        <div class="row"><input id="subnet" placeholder="10.130.2"><button class="btn sm" id="scanBtn" style="flex:0 0 auto">Scan</button></div>
+        <p class="hint" id="scanMsg"></p>
+        <div class="scan-grid" id="scanResults"></div>
+      </div>
+    </section>
+    <!-- WIFI -->
+    <section class="panel" id="p-wifi">
+      <div class="card">
+        <h2>Wi-Fi</h2>
+        <p class="hint">Current: <b id="wifiCur">—</b>. Best over Ethernet so you don't drop the connection.</p>
+        <label>Network (SSID)</label>
+        <input id="ssid" list="ssids" placeholder="Network name" autocapitalize="off" autocorrect="off">
+        <datalist id="ssids"></datalist>
+        <label>Password</label>
+        <input id="wifipw" type="text" placeholder="Wi-Fi password" autocapitalize="off" autocorrect="off">
+        <label class="toggle" style="margin-top:10px"><input type="checkbox" id="wifiHidden"> Hidden network</label>
+        <div class="btnrow"><button class="btn primary" id="wifiConnect">Add &amp; connect</button><button class="btn sm" id="wifiRefresh" style="flex:0 0 auto">↻</button></div>
+        <div class="netlist" id="netList"></div>
+      </div>
+    </section>
+    <!-- DISPLAY -->
+    <section class="panel" id="p-display">
+      <div class="card">
+        <h2>Display &amp; site</h2>
+        <p class="hint">Name this wall and control how it looks. Changes apply on the screen within a few seconds.</p>
+        <label>Site / wall name</label><input id="siteName" placeholder="e.g. Radio Technology Museum">
+        <label>Subtitle (optional)</label><input id="siteSub" placeholder="Security Wall">
+        <div class="row">
+          <div><label>Layout</label><select id="layout"><option value="grid">Grid</option><option value="spotlight">Spotlight</option><option value="solo">Solo</option></select></div>
+          <div><label>Default quality</label><select id="quality"><option value="native">Native (safe)</option><option value="low">Low</option><option value="medium">Medium 720p</option><option value="high">High 1080p</option></select></div>
+        </div>
+        <div class="row">
+          <div><label>Rotation</label><select id="rotation"><option value="0">0° (landscape)</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
+          <div><label>Auto-cycle (solo/spotlight)</label><select id="rotateSec"><option value="0">Off</option><option value="5">5s</option><option value="10">10s</option><option value="20">20s</option><option value="30">30s</option></select></div>
+        </div>
+        <label class="toggle" style="margin-top:12px"><input type="checkbox" id="showClock"> Show clock</label>
+        <label class="toggle"><input type="checkbox" id="showQR"> Show admin QR badge on the wall</label>
+        <label class="toggle"><input type="checkbox" id="screenBlank"> Allow screen to blank when idle</label>
+        <div class="btnrow"><button class="btn primary" id="saveDisplay">Save &amp; apply</button></div>
+      </div>
+    </section>
+    <!-- SYSTEM -->
+    <section class="panel" id="p-system">
+      <div class="card">
+        <h2>System</h2>
+        <div class="status-grid" id="sysStat"><span class="muted">loading…</span></div>
+        <h2 style="margin-top:14px;font-size:14px">Cameras</h2>
+        <div class="health" id="sysHealth"></div>
+        <div class="btnrow"><button class="btn blue" id="reloadWall">Reload wall</button><button class="btn sm" id="sysRefresh" style="flex:0 0 auto">↻</button></div>
+        <div class="btnrow"><button class="btn" id="restartServer">Restart server</button></div>
+        <div class="btnrow"><button class="btn danger" id="rebootBtn">Reboot</button><button class="btn danger" id="shutdownBtn">Shut down</button></div>
+      </div>
+      <div class="card">
+        <h2>Change PIN</h2>
+        <label>Current PIN</label><input id="pinCur" type="tel" inputmode="numeric" autocomplete="off">
+        <label>New PIN (4+ digits)</label><input id="pinNew" type="tel" inputmode="numeric" autocomplete="off">
+        <div class="btnrow"><button class="btn primary" id="savePin">Update PIN</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+var $ = function(s,r){ return (r||document).querySelector(s); };
+var cfg = null;                       // full config (from /api/admin/config)
+
+function toast(msg, err){
+  var t=$("#toast"); t.textContent=msg; t.className="toast show"+(err?" err":"");
+  setTimeout(function(){ t.className="toast"+(err?" err":""); }, 2600);
+}
+function api(path, opts){
+  opts = opts||{};
+  return fetch(path, Object.assign({credentials:"same-origin",headers:{"Content-Type":"application/json"}}, opts))
+    .then(function(r){
+      if (r.status===401){ showLogin(); throw new Error("auth"); }
+      return r.json().catch(function(){ return {}; }).then(function(j){ if(!r.ok && j.error) throw new Error(j.error); return j; });
+    });
+}
+function post(path, body){ return api(path, {method:"POST", body:JSON.stringify(body||{})}); }
+
+// ---------- auth ----------
+function showLogin(){ $("#app").style.display="none"; $("#login").style.display="block"; setTimeout(function(){ $("#pin").focus(); },50); }
+function showApp(){ $("#login").style.display="none"; $("#app").style.display="block"; loadAll(); }
+$("#loginBtn").onclick = function(){
+  post("/api/admin/login",{pin:$("#pin").value}).then(function(){ $("#pin").value=""; showApp(); })
+    .catch(function(){ $("#loginMsg").textContent="Wrong PIN."; });
+};
+$("#pin").addEventListener("keydown", function(e){ if(e.key==="Enter") $("#loginBtn").click(); });
+$("#logoutBtn").onclick = function(){ post("/api/admin/logout",{}).then(showLogin); };
+
+// ---------- tabs ----------
+$("#tabs").addEventListener("click", function(e){
+  var t=e.target.closest(".tab"); if(!t) return;
+  document.querySelectorAll(".tab").forEach(function(x){ x.classList.toggle("active", x===t); });
+  document.querySelectorAll(".panel").forEach(function(p){ p.classList.toggle("active", p.id==="p-"+t.dataset.tab); });
+  if(t.dataset.tab==="wifi") loadWifi();
+  if(t.dataset.tab==="system") loadSystem();
+});
+
+// ---------- load config ----------
+function loadAll(){
+  api("/api/admin/config").then(function(c){ cfg=c; renderCameras(); fillDisplay(); prefillSubnet(); });
+}
+function prefillSubnet(){
+  fetch("/api/config").then(function(r){return r.json();}).then(function(pc){
+    if(pc.lanIp) $("#subnet").value = pc.lanIp.split(".").slice(0,3).join(".");
+  });
+}
+
+// ---------- cameras ----------
+function renderCameras(){
+  var host=$("#camList"); host.innerHTML="";
+  (cfg.cameras||[]).forEach(function(cam,i){
+    var d=document.createElement("div"); d.className="cam";
+    d.innerHTML =
+      '<div class="top"><span class="idx">#'+(i+1)+'</span>'+
+        '<label class="toggle"><input type="checkbox" '+(cam.enabled!==false?"checked":"")+' data-k="enabled"> shown</label>'+
+        '<div class="ord"><button data-act="up">▲</button><button data-act="down">▼</button><button data-act="del">✕</button></div></div>'+
+      '<label>Name</label><input data-k="name" value="'+attr(cam.name)+'">'+
+      '<div class="row"><div><label>IP address</label><input data-k="ip" value="'+attr(cam.ip)+'"></div>'+
+        '<div><label>Quality</label><select data-k="quality">'+qOpts(cam.quality)+'</select></div></div>'+
+      '<label>Custom stream URL (optional — overrides IP/quality)</label><input data-k="stream" value="'+attr(cam.stream||"")+'" placeholder="http://…/video.cgi">';
+    // field bindings
+    d.querySelectorAll("[data-k]").forEach(function(el){
+      el.addEventListener("change", function(){
+        var k=el.dataset.k;
+        cam[k] = el.type==="checkbox" ? el.checked : el.value;
+      });
+    });
+    d.querySelector('[data-act="up"]').onclick=function(){ if(i>0){ swap(i,i-1); } };
+    d.querySelector('[data-act="down"]').onclick=function(){ if(i<cfg.cameras.length-1){ swap(i,i+1); } };
+    d.querySelector('[data-act="del"]').onclick=function(){ cfg.cameras.splice(i,1); renderCameras(); };
+    host.appendChild(d);
+  });
+  if(!(cfg.cameras||[]).length) host.innerHTML='<p class="hint">No cameras yet. Add one, or use the Scan tab.</p>';
+}
+function swap(a,b){ var c=cfg.cameras; var t=c[a]; c[a]=c[b]; c[b]=t; renderCameras(); }
+function qOpts(v){ return ["","native","low","medium","high"].map(function(q){
+  var lbl={"":"(default)","native":"Native","low":"Low","medium":"Medium 720p","high":"High 1080p"}[q];
+  return '<option value="'+q+'" '+(q===(v||"")?"selected":"")+'>'+lbl+'</option>'; }).join(""); }
+function attr(s){ return String(s==null?"":s).replace(/"/g,"&quot;"); }
+function uid(){ return "cam"+Math.random().toString(36).slice(2,8); }
+$("#addCam").onclick=function(){ (cfg.cameras=cfg.cameras||[]).push({id:uid(),name:"Camera "+(cfg.cameras.length+1),ip:"",quality:"",stream:"",enabled:true}); renderCameras(); };
+$("#saveCams").onclick=function(){ post("/api/admin/config",{cameras:cfg.cameras}).then(function(){ toast("Cameras saved — wall updating"); }).catch(function(e){ toast(e.message,true); }); };
+
+// ---------- scan ----------
+$("#scanBtn").onclick=function(){
+  var btn=$("#scanBtn"); btn.disabled=true;
+  $("#scanMsg").innerHTML='<span class="spin"></span> scanning '+($("#subnet").value||"local")+'.0/24 …';
+  $("#scanResults").innerHTML="";
+  post("/api/admin/scan",{subnet:$("#subnet").value}).then(function(res){
+    btn.disabled=false;
+    $("#scanMsg").textContent = res.count+" camera(s) found on "+res.subnet+".0/24";
+    var g=$("#scanResults"); g.innerHTML="";
+    (res.cameras||[]).forEach(function(c){
+      var have=(cfg.cameras||[]).some(function(x){ return x.ip===c.ip; });
+      var d=document.createElement("div"); d.className="found";
+      d.innerHTML='<img src="'+c.snapshot+'" alt=""><div class="b"><div class="ip">'+c.ip+'</div>'+
+        '<button class="btn sm '+(have?"":"primary")+'" style="width:100%">'+(have?"Added ✓":"+ Add")+'</button></div>';
+      var b=d.querySelector("button");
+      if(!have) b.onclick=function(){
+        var name=prompt("Name this camera:", "Camera "+((cfg.cameras||[]).length+1)); if(name===null) return;
+        (cfg.cameras=cfg.cameras||[]).push({id:uid(),name:name,ip:c.ip,quality:"",stream:"",enabled:true});
+        b.textContent="Added ✓"; b.className="btn sm";
+        post("/api/admin/config",{cameras:cfg.cameras}).then(function(){ toast(name+" added"); renderCameras(); });
+      };
+      g.appendChild(d);
+    });
+    if(!res.count) g.innerHTML='<p class="hint">Nothing found. Check the subnet, or that the Pi can reach the cameras.</p>';
+  }).catch(function(e){ btn.disabled=false; $("#scanMsg").textContent=""; toast(e.message,true); });
+};
+
+// ---------- wifi ----------
+function loadWifi(){
+  $("#wifiCur").textContent="…";
+  api("/api/admin/wifi").then(function(w){
+    $("#wifiCur").textContent = w.current || "not connected";
+    $("#ssids").innerHTML = (w.scan||[]).map(function(n){ return '<option value="'+attr(n.ssid)+'">'; }).join("");
+    var nl=$("#netList"); nl.innerHTML="";
+    (w.scan||[]).forEach(function(n){
+      var d=document.createElement("div"); d.className="net";
+      d.innerHTML='<span>'+attr(n.ssid)+'</span>'+(n.inUse?'<span class="use">• connected</span>':"")+'<span class="sp" style="flex:1"></span><span class="sig">'+n.signal+'%</span>';
+      d.onclick=function(){ $("#ssid").value=n.ssid; $("#wifipw").focus(); };
+      nl.appendChild(d);
+    });
+  }).catch(function(){});
+}
+$("#wifiRefresh").onclick=loadWifi;
+$("#wifiConnect").onclick=function(){
+  var ssid=$("#ssid").value.trim(); if(!ssid){ toast("Enter a network name",true); return; }
+  toast("Connecting to "+ssid+"…");
+  post("/api/admin/wifi",{ssid:ssid,password:$("#wifipw").value,hidden:$("#wifiHidden").checked}).then(function(r){
+    toast(r.ok?("Connected / saved: "+ssid):("Failed: "+(r.output||"")), !r.ok);
+    if(r.ok){ $("#wifipw").value=""; loadWifi(); }
+  }).catch(function(e){ toast(e.message,true); });
+};
+
+// ---------- display ----------
+function fillDisplay(){
+  var s=cfg.site||{}, d=cfg.display||{}, b=cfg.behavior||{};
+  $("#siteName").value=s.name||""; $("#siteSub").value=s.subtitle||"";
+  $("#layout").value=cfg.layout||"grid"; $("#quality").value=cfg.quality||"native";
+  $("#rotation").value=String(d.rotation||0); $("#rotateSec").value=String(b.rotateSec||0);
+  $("#showClock").checked=d.showClock!==false; $("#showQR").checked=!!d.showQR; $("#screenBlank").checked=!!d.screenBlank;
+}
+$("#saveDisplay").onclick=function(){
+  var body={
+    site:{name:$("#siteName").value,subtitle:$("#siteSub").value},
+    layout:$("#layout").value, quality:$("#quality").value,
+    display:{rotation:parseInt($("#rotation").value,10),showClock:$("#showClock").checked,showQR:$("#showQR").checked,screenBlank:$("#screenBlank").checked},
+    behavior:Object.assign({}, cfg.behavior||{}, {rotateSec:parseInt($("#rotateSec").value,10)})
+  };
+  post("/api/admin/config",body).then(function(){ Object.assign(cfg,body); toast("Display saved — wall updating"); }).catch(function(e){ toast(e.message,true); });
+};
+
+// ---------- system ----------
+function loadSystem(){
+  $("#sysStat").innerHTML='<span class="muted">loading…</span>';
+  api("/api/admin/system").then(function(s){
+    $("#sysStat").innerHTML =
+      row("Model",s.model)+row("Host",s.hostname)+row("IP",s.lanIp)+row("Uptime",(s.uptime||"").replace(/^up /,""))+
+      row("CPU temp",s.cpuTemp!=null?s.cpuTemp+" °C":"—")+
+      row("Disk",s.disk?(s.disk.used+" / "+s.disk.size+" ("+s.disk.pct+")"):"—");
+    var h=$("#sysHealth"); h.innerHTML="";
+    (s.cameras||[]).forEach(function(c){
+      var d=document.createElement("div"); d.className="h";
+      d.innerHTML='<span class="dot2 '+(c.live?"on":"off")+'"></span><span>'+attr(c.name)+'</span><span class="muted" style="margin-left:auto">'+attr(c.ip)+'</span>';
+      h.appendChild(d);
+    });
+    if(!(s.cameras||[]).length) h.innerHTML='<p class="hint">No cameras configured.</p>';
+  }).catch(function(){});
+}
+function row(k,v){ return '<span class="k">'+k+'</span><span>'+attr(v||"—")+'</span>'; }
+$("#sysRefresh").onclick=loadSystem;
+$("#reloadWall").onclick=function(){ post("/api/admin/system",{action:"reload-wall"}).then(function(){ toast("Wall reloading"); }); };
+$("#restartServer").onclick=function(){ if(!confirm("Restart the wall server? The display blinks briefly.")) return;
+  post("/api/admin/system",{action:"restart-server"}).then(function(){ toast("Restarting server…"); }); };
+$("#rebootBtn").onclick=function(){ if(!confirm("Reboot the Raspberry Pi now?")) return;
+  post("/api/admin/system",{action:"reboot"}).then(function(){ toast("Rebooting — back in ~40s"); }); };
+$("#shutdownBtn").onclick=function(){ if(!confirm("Shut down the Pi? You'll need to pull power to restart it.")) return;
+  post("/api/admin/system",{action:"poweroff"}).then(function(){ toast("Shutting down…"); }); };
+$("#savePin").onclick=function(){
+  post("/api/admin/pin",{current:$("#pinCur").value,next:$("#pinNew").value}).then(function(){
+    $("#pinCur").value=""; $("#pinNew").value=""; toast("PIN updated");
+  }).catch(function(e){ toast(e.message,true); });
+};
+
+// ---------- boot: are we already logged in? ----------
+api("/api/admin/config").then(function(c){ cfg=c; $("#login").style.display="none"; showApp(); })
+  .catch(function(){ showLogin(); });
+</script>
+</body>
+</html>

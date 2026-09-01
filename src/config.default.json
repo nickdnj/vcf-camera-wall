@@ -1,0 +1,24 @@
+{
+  "site": { "name": "VCF Museum", "subtitle": "Security Wall" },
+  "cameras": [
+    { "id": "cam1", "name": "Mini",      "ip": "10.130.2.86", "quality": "", "stream": "", "enabled": true },
+    { "id": "cam2", "name": "Mainframe", "ip": "10.130.2.87", "quality": "", "stream": "", "enabled": true },
+    { "id": "cam3", "name": "Modern",    "ip": "10.130.2.89", "quality": "", "stream": "", "enabled": true }
+  ],
+  "layout": "grid",
+  "quality": "native",
+  "display": {
+    "rotation": 0,
+    "showClock": true,
+    "showQR": true,
+    "screenBlank": false
+  },
+  "behavior": {
+    "reconnectDelayMs": 3000,
+    "maxReconnectDelayMs": 30000,
+    "watchdogReloadMin": 10,
+    "hideCursorAfterSec": 5,
+    "rotateSec": 0
+  },
+  "version": 1
+}

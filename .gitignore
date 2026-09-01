@@ -11,3 +11,4 @@ build/
 .claude/agents/*.md
 .claude/skills/*/SKILL.md
 .claude/settings.local.json
+data/

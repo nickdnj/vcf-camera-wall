@@ -40,7 +40,7 @@ log "Installing packages (chromium, unclutter, curl)…"
 sudo apt-get update -y
 # package name differs by release; try both
 sudo apt-get install -y chromium-browser 2>/dev/null || sudo apt-get install -y chromium || true
-sudo apt-get install -y unclutter curl x11-xserver-utils 2>/dev/null || true
+sudo apt-get install -y unclutter curl x11-xserver-utils qrencode 2>/dev/null || true
 
 # --- 2. python check -----------------------------------------------------------
 if ! command -v python3 >/dev/null 2>&1; then
