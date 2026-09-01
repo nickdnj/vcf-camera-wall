@@ -93,11 +93,36 @@ fullscreen kiosk at boot. Full walkthrough: **`docs/RASPBERRY-PI.md`**.
 
 See `docs/USAGE.md` for details and troubleshooting.
 
+## Admin panel (from your phone)
+
+The wall shows a small **QR badge**; scan it (same Wi-Fi) to open the admin page
+at `http://<pi>:8770/admin`, or browse there directly. It is PIN-gated (default
+`2468` — **change it** under System → Change PIN). From the panel you can:
+
+- **Cameras** — add / rename / reorder / disable feeds, set quality, or paste a
+  custom stream URL. Changes apply to the wall within a few seconds, no reboot.
+- **Scan** — discover AXIS / MJPEG cameras on the network and add them with a tap.
+- **Wi-Fi** — see the current network and join another (best over Ethernet).
+- **Display** — site name, layout, rotation, clock, and the QR badge.
+- **System** — live status (IP, temp, disk, per-camera health), reboot / shutdown /
+  restart, and software updates.
+
+This makes the appliance reusable: point a new Pi at a different museum's cameras
+entirely from the phone — no reflash, no editing files.
+
+## Updating
+
+If the Pi is a git checkout of this repo (cloned into `~/vcf-camera-wall`), the
+admin **System → Software update** button checks GitHub and fast-forwards to the
+latest `main`, then restarts — the wall reloads itself. By hand:
+
+    cd ~/vcf-camera-wall && git pull && sudo systemctl restart vcf-camera-wall-server
+
 ## What this is not
 
-No recording/NVR, motion detection, or authentication. It's a live **display**
-wall. If you later want recording, that's a separate NVR (or go2rtc/Frigate) —
-ask and we can add it.
+No recording/NVR or motion detection. It's a live **display** wall (the admin
+panel is PIN-gated, but the feeds themselves are shown, not authenticated). If you
+later want recording, that's a separate NVR (or go2rtc/Frigate) — ask and we can add it.
 
 ---
 Software project, team: Software Project Team. Provisioned by AgentArchitect (2026-08-30).
