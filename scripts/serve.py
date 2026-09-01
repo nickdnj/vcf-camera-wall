@@ -35,11 +35,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.normpath(os.path.join(HERE, "..", "src"))
+REPO_DIR = os.path.normpath(os.path.join(HERE, ".."))
 DATA_DIR = os.path.normpath(os.path.join(HERE, "..", "data"))
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
 DEFAULT_CONFIG_PATH = os.path.join(SRC, "config.default.json")
 DEFAULT_PIN = "2468"                       # change in the admin page!
 SERVICE = "vcf-camera-wall-server"
+SERVER_ID = secrets.token_hex(4)           # changes each server start -> wall hard-reloads
 QUALITY = {
     "native": "fps=12",
     "low":    "resolution=640x480&fps=8",
@@ -99,6 +101,7 @@ def public_config(cfg, port):
     ip = lan_ip()
     out["lanIp"] = ip
     out["adminUrl"] = "http://%s:%d/admin" % (ip, port)
+    out["serverId"] = SERVER_ID
     return out
 
 # ----------------------------------------------------------------------------- helpers
@@ -247,6 +250,47 @@ def system_action(action):
         return {"ok": True, "version": cfg["version"]}
     return {"ok": False, "error": "unknown action"}
 
+# ----------------------------------------------------------------------------- git update
+def _git(args, timeout=60):
+    return sh(["git", "-C", REPO_DIR] + args, timeout=timeout)
+
+def git_status(do_fetch=True):
+    rc, _, _ = _git(["rev-parse", "--is-inside-work-tree"])
+    if rc != 0:
+        return {"repo": False, "error": "not a git checkout"}
+    if do_fetch:
+        _git(["fetch", "--quiet", "origin"], timeout=45)
+    def one(a):
+        _, o, _ = _git(a); return o.strip()
+    behind = one(["rev-list", "--count", "HEAD..origin/main"]) or "0"
+    return {
+        "repo": True,
+        "branch": one(["rev-parse", "--abbrev-ref", "HEAD"]),
+        "local": one(["rev-parse", "--short", "HEAD"]),
+        "remote": one(["rev-parse", "--short", "origin/main"]),
+        "behind": int(behind or 0),
+        "ahead": int(one(["rev-list", "--count", "origin/main..HEAD"]) or 0),
+        "dirty": bool(one(["status", "--porcelain", "-uno"])),
+        "currentMsg": one(["log", "-1", "--format=%s", "HEAD"]),
+        "latestMsg": one(["log", "-1", "--format=%s", "origin/main"]),
+        "upToDate": behind == "0",
+    }
+
+def git_update():
+    st = git_status(do_fetch=True)
+    if not st.get("repo"):
+        return {"ok": False, "error": "not a git checkout"}
+    if st["dirty"]:
+        return {"ok": False, "error": "the Pi has local edits to tracked files; refusing to auto-update"}
+    if st["behind"] == 0:
+        return {"ok": True, "changed": False, "message": "already up to date", "local": st["local"]}
+    rc, o, e = _git(["merge", "--ff-only", "origin/main"], timeout=60)
+    if rc != 0:
+        return {"ok": False, "error": "fast-forward failed: " + (e or o).strip()}
+    new = git_status(do_fetch=False)
+    subprocess.Popen(["sudo", "-n", "systemctl", "restart", SERVICE], start_new_session=True)
+    return {"ok": True, "changed": True, "from": st["local"], "to": new["local"], "restarting": True}
+
 # ----------------------------------------------------------------------------- qr
 def qr_bytes(url):
     for args, ctype in ((["qrencode", "-t", "SVG", "-m", "1", "-o", "-", url], "image/svg+xml"),
@@ -350,6 +394,9 @@ class Handler(BaseHTTPRequestHandler):
         if p == "/api/admin/system":
             if not self._auth(): return self._need_auth()
             return self._json(system_status(load_config()))
+        if p == "/api/admin/update":
+            if not self._auth(): return self._need_auth()
+            return self._json(git_status())
         # static assets in src/
         safe = os.path.normpath(p).lstrip("/")
         fp = os.path.join(SRC, safe)
@@ -422,6 +469,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if p == "/api/admin/system":
             return self._json(system_action(body.get("action", "")))
+
+        if p == "/api/admin/update":
+            return self._json(git_update())
 
         return self._json({"error": "not found"}, 404)
 

@@ -161,6 +161,15 @@
         <div class="btnrow"><button class="btn danger" id="rebootBtn">Reboot</button><button class="btn danger" id="shutdownBtn">Shut down</button></div>
       </div>
       <div class="card">
+        <h2>Software update</h2>
+        <p class="hint">Pulls the latest version from GitHub, then restarts.</p>
+        <div id="updInfo" class="muted" style="font-size:13.5px">Tap check to see if a newer version is available.</div>
+        <div class="btnrow">
+          <button class="btn blue" id="updCheck">Check for updates</button>
+          <button class="btn primary" id="updApply" style="display:none">Update &amp; restart</button>
+        </div>
+      </div>
+      <div class="card">
         <h2>Change PIN</h2>
         <label>Current PIN</label><input id="pinCur" type="tel" inputmode="numeric" autocomplete="off">
         <label>New PIN (4+ digits)</label><input id="pinNew" type="tel" inputmode="numeric" autocomplete="off">
@@ -352,6 +361,26 @@ $("#rebootBtn").onclick=function(){ if(!confirm("Reboot the Raspberry Pi now?"))
   post("/api/admin/system",{action:"reboot"}).then(function(){ toast("Rebooting — back in ~40s"); }); };
 $("#shutdownBtn").onclick=function(){ if(!confirm("Shut down the Pi? You'll need to pull power to restart it.")) return;
   post("/api/admin/system",{action:"poweroff"}).then(function(){ toast("Shutting down…"); }); };
+$("#updCheck").onclick=function(){
+  $("#updInfo").innerHTML='<span class="spin"></span> checking GitHub…';
+  $("#updApply").style.display="none";
+  api("/api/admin/update").then(function(u){
+    if(!u.repo){ $("#updInfo").textContent="This Pi isn't a git checkout — updates unavailable."; return; }
+    if(u.upToDate){ $("#updInfo").innerHTML="✓ Up to date <span class='muted'>("+u.local+")</span><br><span class='muted'>"+attr(u.currentMsg)+"</span>"; }
+    else { $("#updInfo").innerHTML="<b>"+u.behind+" update(s) available.</b><br>Latest: "+attr(u.latestMsg)+"<br><span class='muted'>"+u.local+" → "+u.remote+"</span>";
+           $("#updApply").style.display=""; }
+  }).catch(function(e){ $("#updInfo").textContent="Check failed: "+e.message; });
+};
+$("#updApply").onclick=function(){
+  if(!confirm("Update to the latest version from GitHub and restart? The wall blinks briefly.")) return;
+  $("#updInfo").innerHTML='<span class="spin"></span> updating…';
+  post("/api/admin/update",{}).then(function(r){
+    if(r.ok && r.changed){ toast("Updated "+r.from+" → "+r.to); $("#updApply").style.display="none";
+      $("#updInfo").textContent="Updated to "+r.to+". Server restarting — you may need to log in again."; }
+    else if(r.ok){ toast("Already up to date"); $("#updInfo").textContent="Already up to date."; }
+    else { toast(r.error||"update failed", true); $("#updInfo").textContent="Failed: "+(r.error||""); }
+  }).catch(function(e){ toast(e.message,true); });
+};
 $("#savePin").onclick=function(){
   post("/api/admin/pin",{current:$("#pinCur").value,next:$("#pinNew").value}).then(function(){
     $("#pinCur").value=""; $("#pinNew").value=""; toast("PIN updated");

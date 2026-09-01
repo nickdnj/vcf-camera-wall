@@ -128,7 +128,7 @@
     native:"fps=12", low:"resolution=640x480&fps=8",
     medium:"resolution=1280x720&fps=12", high:"resolution=1920x1080&fps=15",
   };
-  var CFG = null, cams = [], tiles = [], layout = "grid", soloIndex = 0, curVersion = null, rotateTimer = null;
+  var CFG = null, cams = [], tiles = [], layout = "grid", soloIndex = 0, curVersion = null, rotateTimer = null, serverId = null;
 
   var wall = document.getElementById("wall");
   var statusEl = document.getElementById("status");
@@ -297,6 +297,7 @@
   function apply(cfg){
     CFG = cfg.site ? cfg : normalize(cfg);
     curVersion = CFG.version;
+    if (CFG.serverId) serverId = CFG.serverId;
     layout = CFG.layout || "grid";
     if (soloIndex >= (CFG.cameras||[]).length) soloIndex = 0;
     applyChrome(); buildTiles();
@@ -307,6 +308,7 @@
   // ---------- poll for config changes (admin edits apply live) ----------
   setInterval(function(){
     fetch("/api/config",{cache:"no-store"}).then(function(r){return r.json();}).then(function(c){
+      if (serverId && c.serverId && c.serverId!==serverId){ location.reload(); return; }
       if (c && c.version!==curVersion){ apply(c); }
     }).catch(function(){});
   }, 7000);
