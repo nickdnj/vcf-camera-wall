@@ -34,12 +34,26 @@ fi
 PROFILE="$HOME/.config/vcf-kiosk-profile"
 mkdir -p "$PROFILE"
 
+# Clear any stale SingletonLock left by a previous boot. This is a dedicated,
+# single-instance kiosk profile, so a leftover lock — whose recorded pid can be
+# reused by an unrelated process after a reboot — would make Chromium believe
+# another instance owns the profile and abort, leaving the bare desktop instead
+# of the wall (exactly what happened once on site).
+rm -f "$PROFILE"/Singleton* 2>/dev/null || true
+
+# Force the Wayland Ozone backend when we're under Wayland (labwc on Pi OS
+# Trixie). The chromium wrapper is *supposed* to auto-detect this, but that
+# detection is fragile (it silently falls back to X11 and dies with "Missing X
+# server"); setting it explicitly makes the kiosk start reliably.
+OZONE=""
+[ -n "$WAYLAND_DISPLAY" ] && OZONE="--ozone-platform=wayland"
+
 # --password-store=basic keeps Chromium off the GNOME login keyring. On a
 # passwordless autologin appliance the keyring is never unlocked, so without
 # this Chromium pops a blocking "unlock keyring" dialog over the wall at boot
 # (and there's no keyboard/mouse to dismiss it). 'basic' uses an in-process
 # store, which is fine here — the kiosk profile is incognito and stateless.
-exec "$BIN" \
+exec "$BIN" $OZONE \
   --kiosk "$URL" \
   --user-data-dir="$PROFILE" \
   --password-store=basic \
