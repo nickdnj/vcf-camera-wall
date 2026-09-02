@@ -34,9 +34,15 @@ fi
 PROFILE="$HOME/.config/vcf-kiosk-profile"
 mkdir -p "$PROFILE"
 
+# --password-store=basic keeps Chromium off the GNOME login keyring. On a
+# passwordless autologin appliance the keyring is never unlocked, so without
+# this Chromium pops a blocking "unlock keyring" dialog over the wall at boot
+# (and there's no keyboard/mouse to dismiss it). 'basic' uses an in-process
+# store, which is fine here — the kiosk profile is incognito and stateless.
 exec "$BIN" \
   --kiosk "$URL" \
   --user-data-dir="$PROFILE" \
+  --password-store=basic \
   --start-fullscreen \
   --noerrdialogs \
   --disable-infobars \
