@@ -63,6 +63,16 @@
   .spin{display:inline-block;width:15px;height:15px;border:2px solid var(--edge);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
   @keyframes sp{to{transform:rotate(360deg)}}
   .muted{color:var(--muted)} .center{text-align:center}
+  /* live view — phone preview of exactly what's on the wall */
+  .live-grid{display:grid;gap:8px;grid-template-columns:repeat(2,1fr)}
+  .live-grid.one{grid-template-columns:1fr}
+  .live-tile{position:relative;background:#000;border:1px solid var(--line);border-radius:10px;overflow:hidden;aspect-ratio:4/3}
+  .live-tile.solo{grid-column:1 / -1;aspect-ratio:16/10}
+  .live-tile img{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;display:block}
+  .live-tile .off{position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+  .live-tile .lab{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;align-items:center;gap:6px;
+    padding:5px 8px;font-size:12px;background:linear-gradient(transparent,rgba(0,0,0,.72))}
+  .live-tile .lab .ip{margin-left:auto;color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:11px}
 </style>
 </head>
 <body>
@@ -83,15 +93,24 @@
     <button class="btn sm" id="logoutBtn">Log out</button>
   </header>
   <div class="tabs" id="tabs">
-    <div class="tab active" data-tab="cameras">Cameras</div>
+    <div class="tab active" data-tab="live">Live</div>
+    <div class="tab" data-tab="cameras">Cameras</div>
     <div class="tab" data-tab="scan">Scan</div>
     <div class="tab" data-tab="wifi">Wi-Fi</div>
     <div class="tab" data-tab="display">Display</div>
     <div class="tab" data-tab="system">System</div>
   </div>
   <main>
+    <!-- LIVE -->
+    <section class="panel active" id="p-live">
+      <div class="card">
+        <h2>Live view</h2>
+        <p class="hint">The feeds currently on the wall. Tap a tile to enlarge; tap again to shrink.</p>
+        <div class="live-grid" id="liveGrid"></div>
+      </div>
+    </section>
     <!-- CAMERAS -->
-    <section class="panel active" id="p-cameras">
+    <section class="panel" id="p-cameras">
       <div class="card">
         <h2>Cameras</h2>
         <p class="hint">Add, rename, reorder, or disable the feeds shown on the wall.</p>
@@ -215,13 +234,52 @@ $("#tabs").addEventListener("click", function(e){
   var t=e.target.closest(".tab"); if(!t) return;
   document.querySelectorAll(".tab").forEach(function(x){ x.classList.toggle("active", x===t); });
   document.querySelectorAll(".panel").forEach(function(p){ p.classList.toggle("active", p.id==="p-"+t.dataset.tab); });
-  if(t.dataset.tab==="wifi") loadWifi();
-  if(t.dataset.tab==="system") loadSystem();
+  var tab=t.dataset.tab;
+  if(tab==="live") loadLive(); else stopLive();   // close MJPEG streams when leaving Live
+  if(tab==="wifi") loadWifi();
+  if(tab==="system") loadSystem();
 });
 
 // ---------- load config ----------
 function loadAll(){
-  api("/api/admin/config").then(function(c){ cfg=c; renderCameras(); fillDisplay(); prefillSubnet(); });
+  api("/api/admin/config").then(function(c){ cfg=c; renderCameras(); fillDisplay(); prefillSubnet(); loadLive(); });
+}
+
+// ---------- live view (mirrors the wall's stream URLs exactly) ----------
+var LIVE_Q = { native:"fps=12", low:"resolution=640x480&fps=8",
+  medium:"resolution=1280x720&fps=12", high:"resolution=1920x1080&fps=15" };
+var liveOn = false;
+function liveStreamUrl(cam){
+  if(cam.stream) return cam.stream;
+  var q = LIVE_Q[cam.quality || (cfg&&cfg.quality) || "native"] || LIVE_Q.native;
+  return "http://"+cam.ip+"/axis-cgi/mjpg/video.cgi"+(q?"?"+q:"");
+}
+function liveBust(u){ return u+(u.indexOf("?")>=0?"&":"?")+"_t="+Date.now(); }
+function loadLive(){
+  liveOn = true;
+  var host=$("#liveGrid"); host.innerHTML="";
+  var list=((cfg&&cfg.cameras)||[]).filter(function(c){ return c.enabled!==false && (c.ip||c.stream); });
+  host.className="live-grid"+(list.length<=1?" one":"");
+  if(!list.length){ host.innerHTML='<p class="hint">No cameras enabled. Add one in the Cameras tab.</p>'; return; }
+  list.forEach(function(cam){
+    var t=document.createElement("div"); t.className="live-tile";
+    var off=document.createElement("div"); off.className="off"; off.textContent="connecting…";
+    var img=document.createElement("img"); img.alt=cam.name||"";
+    img.onload=function(){ off.textContent=""; };
+    img.onerror=function(){ off.textContent="offline — retrying";
+      if(liveOn) setTimeout(function(){ if(liveOn) img.src=liveBust(liveStreamUrl(cam)); }, 5000); };
+    img.src=liveBust(liveStreamUrl(cam));
+    var lab=document.createElement("div"); lab.className="lab";
+    lab.innerHTML='<span>'+attr(cam.name||"")+'</span><span class="ip">'+attr(cam.ip||"")+'</span>';
+    t.appendChild(off); t.appendChild(img); t.appendChild(lab);
+    t.onclick=function(){ t.classList.toggle("solo"); };
+    host.appendChild(t);
+  });
+}
+function stopLive(){
+  liveOn=false;
+  var imgs=$("#liveGrid").querySelectorAll("img");
+  for(var i=0;i<imgs.length;i++){ imgs[i].onerror=null; imgs[i].src=""; }  // drop the open connections
 }
 function prefillSubnet(){
   fetch("/api/config").then(function(r){return r.json();}).then(function(pc){
