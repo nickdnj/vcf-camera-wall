@@ -310,6 +310,8 @@
     fetch("/api/config",{cache:"no-store"}).then(function(r){return r.json();}).then(function(c){
       if (serverId && c.serverId && c.serverId!==serverId){ location.reload(); return; }
       if (c && c.version!==curVersion){ apply(c); }
+      // the LAN IP can change without a version bump (booted before the network came up)
+      else if (c && c.adminUrl && c.adminUrl!==CFG.adminUrl){ CFG.adminUrl=c.adminUrl; CFG.lanIp=c.lanIp; applyChrome(); }
     }).catch(function(){});
   }, 7000);
 
