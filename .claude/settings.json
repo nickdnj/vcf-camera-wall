@@ -20,6 +20,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "^mcp__.*__(.*share.*|create_event|update_event)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/aa-email-guard.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SessionStart": [
