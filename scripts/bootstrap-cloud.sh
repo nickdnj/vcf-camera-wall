@@ -185,16 +185,10 @@ echo "==> Capability probe"
 command -v codex >/dev/null 2>&1 \
   && echo "    [have] codex — outside-voice review uses it" \
   || echo "    [none] codex — outside-voice review falls back to a subagent reviewer"
-if command -v curl >/dev/null 2>&1; then
-  # Any HTTP response means we have egress and the service answered. Don't use
-  # -f: the root path legitimately returns 404/405 and that is still "reachable".
-  rag_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
-    https://rag-api-934267405367.us-central1.run.app 2>/dev/null || echo 000)
-  if [[ "$rag_code" != "000" ]]; then
-    echo "    [have] Cloud Run RAG API reachable (HTTP $rag_code) — rag-search works"
-  else
-    echo "    [none] Cloud Run RAG API unreachable — document search degraded"
-  fi
+if [[ -f "$REPO_ROOT/data/rag-fts.db" && -f "$REPO_ROOT/scripts/rag-client-fts.py" ]]; then
+  echo "    [have] document search — committed index at data/rag-fts.db (python3 scripts/rag-client-fts.py)"
+else
+  echo "    [none] document search — no committed index in this repo (the Cloud RAG API was retired 2026-11-11)"
 fi
 echo "    [note] MCP server availability cannot be probed from bash."
 echo "           See wiki spine/infrastructure/cloud-mode-capabilities.md."

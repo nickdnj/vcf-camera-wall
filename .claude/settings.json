@@ -40,6 +40,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "^mcp__(claude_ai_Gmail|gmail|gmail-personal)__(create_draft|update_draft|draft_email)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/aa-draft-domain-guard.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SessionStart": [
